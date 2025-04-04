@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import numpy as np
+import pandas as pd
+from io import StringIO
+
+def relion2warp(df_particles, angpix, tomo_size):
+    """
+    Convert RELION centered coordinates (in Ångströms) to Warp coordinates (in pixels)
+    by converting using the provided angpix value and shifting by the tomogram center.
+
+    Parameters:
+      df_particles : pandas.DataFrame
+          DataFrame containing columns 'rlnCenteredCoordinateXAngst',
+          'rlnCenteredCoordinateYAngst', 'rlnCenteredCoordinateZAngst'.
+      angpix : float
+          Conversion factor (Å/pixel).
+      tomo_size : list or tuple of 3 numbers
+          Dimensions of the tomogram in pixels (x, y, z).
+
+    Returns:
+      pandas.DataFrame:
+          Updated DataFrame with added columns 'rlnCoordinateX', 'rlnCoordinateY', 'rlnCoordinateZ'.
+    """
+    volume_center = np.array(tomo_size, dtype=float) / 2.0
+    # Extract the centered coordinates (in Ångströms) and convert to a numpy array.
+    xyz_centered_angstroms = df_particles[['rlnCenteredCoordinateXAngst',
+                                           'rlnCenteredCoordinateYAngst',
+                                           'rlnCenteredCoordinateZAngst']].to_numpy(dtype=float)
+    # Convert from Ångströms to pixels.
+    xyz_centered = xyz_centered_angstroms / angpix
+    # Shift coordinates by the volume center to obtain absolute positions in the tomogram.
+    xyz = xyz_centered + volume_center
+    # Add the new coordinates to the DataFrame.
+    df_particles[['rlnCoordinateX', 'rlnCoordinateY', 'rlnCoordinateZ']] = xyz
+    return df_particles
+
+def parse_tomo_size(size_str):
+    """
+    Parse the tomogram size string in the format x/y/z into a list of three floats.
+    """
+    parts = size_str.split('/')
+    if len(parts) != 3:
+        raise argparse.ArgumentTypeError("tomo_size must be in the format x/y/z")
+    try:
+        return [float(part) for part in parts]
+    except ValueError:
+        raise argparse.ArgumentTypeError("All tomo_size values must be numbers")
+
+def read_star_file(file_path, block):
+    """
+    Custom parser for a STAR file block.
+    
+    Searches for a specific block (e.g. 'data_optics' or 'data_particles'),
+    locates the subsequent 'loop_' section, extracts header lines (column names)
+    and reads the data lines into a pandas DataFrame.
+    
+    Parameters:
+      file_path : str
+          Path to the STAR file.
+      block : str
+          Block name without the "data_" prefix (e.g. "optics" or "particles").
+    
+    Returns:
+      pandas.DataFrame: Parsed table.
+    """
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    # Locate the block (e.g., "data_optics" or "data_particles")
+    block_identifier = f"data_{block.lower()}"
+    block_index = None
+    for i, line in enumerate(lines):
+        if line.strip().lower() == block_identifier:
+            block_index = i
+            break
+    if block_index is None:
+        raise Exception(f"Block '{block_identifier}' not found in STAR file.")
+
+    # From the block, locate the next occurrence of "loop_"
+    loop_index = None
+    for i in range(block_index, len(lines)):
+        if lines[i].strip().startswith("loop_"):
+            loop_index = i
+            break
+    if loop_index is None:
+        raise Exception(f"No 'loop_' found after block '{block_identifier}' in STAR file.")
+
+    # Collect header lines (they start with an underscore) immediately after "loop_"
+    header_lines = []
+    header_end_index = loop_index + 1
+    for i in range(loop_index + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith('_'):
+            header_lines.append(stripped)
+            header_end_index = i + 1
+        elif stripped == "":
+            continue
+        else:
+            header_end_index = i
+            break
+
+    if not header_lines:
+        raise Exception(f"No header columns found in block '{block_identifier}'.")
+
+    # Remove the leading underscore (and any trailing numbering) to get column names.
+    columns = [line.split()[0][1:] for line in header_lines]
+
+    # Collect data lines (stop if a new block starts)
+    data_lines = []
+    for i in range(header_end_index, len(lines)):
+        line = lines[i]
+        stripped = line.strip()
+        if stripped == "":
+            continue
+        if stripped.lower().startswith("data_"):
+            break
+        if stripped.startswith("#"):
+            continue
+        data_lines.append(line)
+    if not data_lines:
+        # If no data lines, return an empty DataFrame with the columns.
+        return pd.DataFrame(columns=columns)
+    data_str = ''.join(data_lines)
+    # Read the data using whitespace as the delimiter.
+    df = pd.read_csv(StringIO(data_str), sep=r'\s+', names=columns, engine='python')
+    return df
+
+def write_star_file(file_path, star_dict):
+    """
+    Write out a STAR file given a dictionary of blocks.
+    
+    The dictionary should have keys such as "optics" and "particles", and each value
+    is a pandas DataFrame.
+    """
+    with open(file_path, 'w') as f:
+        # Write a header comment.
+        f.write("# Generated by relion2warp conversion script\n")
+        # Write the optics block first, then particles.
+        for block_name in ["optics", "particles"]:
+            if block_name in star_dict:
+                df = star_dict[block_name]
+                f.write(f"data_{block_name}\n\n")
+                f.write("loop_\n")
+                # Write header lines (prepend an underscore to each column name)
+                for col in df.columns:
+                    f.write(f"_{col}\n")
+                # Write data lines.
+                for _, row in df.iterrows():
+                    row_vals = [str(x) for x in row]
+                    f.write("\t".join(row_vals) + "\n")
+                f.write("\n")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Convert RELION centered coordinates to Warp coordinates and include the optics block."
+    )
+    parser.add_argument("-i", "--input", required=True, help="Input RELION STAR file")
+    parser.add_argument("-angpix", "--angpix", required=True, type=float, help="Angstrom per pixel value")
+    parser.add_argument("-tomo_size", "--tomo_size", required=True, type=parse_tomo_size,
+                        help="Tomogram dimensions in the format x/y/z (in pixels)")
+    parser.add_argument("-o", "--output", help="Output STAR file (default: <input>_warp.star)")
+    args = parser.parse_args()
+
+    # Read the optics and particles blocks from the input STAR file.
+    try:
+        df_optics = read_star_file(args.input, block="optics")
+    except Exception as e:
+        print("Warning: optics block not found. Optics block will be omitted.", e)
+        df_optics = pd.DataFrame()
+    try:
+        df_particles = read_star_file(args.input, block="particles")
+    except Exception as e:
+        print("Error reading particles block:", e)
+        exit(1)
+
+    # Convert the coordinates in the particles block.
+    try:
+        df_particles = relion2warp(df_particles, args.angpix, args.tomo_size)
+    except KeyError as e:
+        print("Missing expected column in particles block:", e)
+        exit(1)
+
+    # Combine the blocks into a dictionary.
+    star = {}
+    if not df_optics.empty:
+        star["optics"] = df_optics
+    star["particles"] = df_particles
+
+    output_file = args.output if args.output else os.path.splitext(args.input)[0] + "_warp.star"
+    try:
+        write_star_file(output_file, star)
+        print("Converted STAR file saved as:", output_file)
+    except Exception as e:
+        print("Error writing the output STAR file:", e)
+        exit(1)
+
+if __name__ == "__main__":
+    main()
