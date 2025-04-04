@@ -5,8 +5,9 @@ import sys
     Script generated with the assistance of ChatGPT (OpenAI)
     Context: Master's Thesis – Establishing a RELION-5-Based Pipeline for Cryo-ET: Structural Analysis of Cilia
     Author: Tamino Cairoli | Date: 04.04.2025
-    Description: 
-    Execute: python3 CombinePrios.py InputFile.star OutputFile.star
+    Description: After classifying the individual opsitions of the ODA, this script roatates the ODA from the "bottom right" position to the "top left" position. Do not forget to
+    center the particles (via a classification step) after rotating the particles. The prior is not changed. Only 180 is added to the _rlnAngleRot column. 
+    Execute: python3 Rot180.py InputFile.star OutputFile.star
     """
 
 def rotate_angle_rot_in_star(input_file, output_file):
