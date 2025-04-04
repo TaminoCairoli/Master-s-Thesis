@@ -1,6 +1,10 @@
 import pandas as pd
 import sys
 
+    """
+    Execute: python3 CombinePrios.py InputFile.star OutputFile.star
+    """
+
 def rotate_angle_rot_in_star(input_file, output_file):
     with open(input_file, 'r') as file:
         lines = file.readlines()
