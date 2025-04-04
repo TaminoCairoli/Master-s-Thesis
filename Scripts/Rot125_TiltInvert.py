@@ -8,7 +8,7 @@ import sys
     Description: After classifying the individual opsitions of the ODA, this script roatates the ODA from the "bottom left" position to the "top left" position. Do not forget to
     center the particles (via a classification step) after rotating the particles. The prior information is changed by inverting the sing of the rotation angle (_rlnAngleRot)
     and the tilt angle (_rlnAngleTilt). Additionally, 125 is added to the _rlnAngleRot column. 
-    Execute: python3 CombinePrios.py InputFile.star OutputFile.star
+    Execute: python3 Rot125_TiltInvert.py InputFile.star OutputFile.star
     """
 
 def invert_tilt_and_adjust_rot_in_star(input_file, output_file):
