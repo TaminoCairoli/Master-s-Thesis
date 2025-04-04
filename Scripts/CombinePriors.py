@@ -3,6 +3,10 @@ import sys
 import re
 import os
 
+    """
+    Execute: python3 CombinePrios.py InputFile_WithPriors.star InputFile_NoPriors.star
+    """
+
 def parse_star_file(filename):
     """
     Reads a STAR file and separates header lines from data lines.
