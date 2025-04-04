@@ -5,7 +5,9 @@ import sys
     Script generated with the assistance of ChatGPT (OpenAI)
     Context: Master's Thesis – Establishing a RELION-5-Based Pipeline for Cryo-ET: Structural Analysis of Cilia
     Author: Tamino Cairoli | Date: 04.04.2025
-    Description: 
+    Description: After classifying the individual opsitions of the ODA, this script roatates the ODA from the "bottom left" position to the "top left" position. Do not forget to
+    center the particles (via a classification step) after rotating the particles. The prior information is changed by inverting the sing of the rotation angle (_rlnAngleRot)
+    and the tilt angle (_rlnAngleTilt). Additionally, 125 is added to the _rlnAngleRot column. 
     Execute: python3 CombinePrios.py InputFile.star OutputFile.star
     """
 
