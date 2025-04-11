@@ -15,7 +15,7 @@
 # Script from Alister Burt, modified to take rot by Huy Bui
 # running with uv run relion_xform_3d.py -i input.star -o output.star -s 0 0 1.073 -r 25.78 0 0
 
-   """
+"""
     Script provided by Huy Bui and adapted by Tamino Cairoli with the assistance of ChatGPT (OpenAI)
     Context: Master's Thesis – Establishing a RELION-5-Based Pipeline for Cryo-ET: Structural Analysis of Cilia
     Author: Tamino Cairoli | Date: 04.04.2025
