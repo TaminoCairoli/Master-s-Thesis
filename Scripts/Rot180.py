@@ -1,7 +1,7 @@
 import pandas as pd
 import sys
 
-    """
+"""
     Script generated with the assistance of ChatGPT (OpenAI)
     Context: Master's Thesis – Establishing a RELION-5-Based Pipeline for Cryo-ET: Structural Analysis of Cilia
     Author: Tamino Cairoli | Date: 04.04.2025
